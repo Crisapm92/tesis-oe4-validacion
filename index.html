@@ -85,6 +85,8 @@ table.res tr.clic{cursor:pointer}
   padding:4px 8px;color:var(--gris);font-family:inherit;cursor:help;text-align:left}
 .rec .chip:hover{background:#e2e6ec;border-color:#c3c9d2;color:var(--texto)}
 .rec .chip.on{background:#eef3fb;border-color:var(--navy);color:var(--navy);font-weight:600}
+.deflist{background:#f6f8fb;border-left:3px solid var(--navy);border-radius:0 6px 6px 0;padding:9px 12px;margin:6px 0 4px}
+.deflist p{margin:0 0 7px}.deflist p:last-child{margin:0}
 .chipdef{margin-top:8px;font-size:13.5px;line-height:1.45;background:#f6f8fb;border-left:3px solid var(--navy);
   border-radius:0 6px 6px 0;padding:9px 11px}
 code.exp{display:block;background:#f0f2f5;border:1px solid var(--linea);border-radius:6px;padding:9px;
@@ -121,7 +123,7 @@ const DESTINO = "cristobalpineda@ug.uchile.cl";
    Pegue aquí la URL que termina en /exec. Si queda vacía, el instrumento
    funciona como antes: envío por correo o descarga de archivos. */
 const ENDPOINT = "https://script.google.com/macros/s/AKfycbxSiBfD18P2gxtEexlkA6LH48vV76dlnXaiGrkCid5WcAH32Sg85ygWQn5htcvsqNjD/exec";
-const VERSION = "5.1";
+const VERSION = "5.3";
 /* Codificación de panelistas. La letra inicial define el estrato y con ella
    la versión del instrumento; el número correlativo no tiene tope, de modo que
    el panel puede crecer sin tocar el archivo. Para cambiar las letras, edite
@@ -142,7 +144,7 @@ function estratoDe(x){
 /* ======================================================================
    CONSENTIMIENTO INFORMADO
    ====================================================================== */
-const CONS_VER = "1.0";
+const CONS_VER = "1.1";
 const CONS = [
  {t:"h1", x:"Documento de consentimiento informado para participación en investigación"},
  {t:"kv", k:"Título del proyecto", x:"Hacia un Modelo de Gobernanza para la Innovación y Transformación en Salud: Construcción desde la Red de Salud Digital de las Universidades del Estado (RSDUE)"},
@@ -154,7 +156,7 @@ const CONS = [
  {t:"h2", x:"Procedimientos"},
  {t:"p", x:"Si usted acepta participar, su colaboración consistirá en la actividad marcada a continuación, según su rol:"},
  {t:"mod", marc:false, k:"Modalidad A: Entrevista semiestructurada", x:"Participará en una entrevista individual de aproximadamente 45-60 minutos, realizada por videoconferencia. Se abordarán temas relacionados con la gestión de la red, las barreras y desafíos para la adopción de innovaciones en establecimientos de salud, los mecanismos de coordinación entre la academia y los servicios, y las necesidades de transferencia tecnológica hacia el sistema público."},
- {t:"mod", marc:true, k:"Modalidad B: Panel de validación de expertos", x:"Participará en la evaluación del modelo de gobernanza propuesto. Se le enviará un instrumento digital (encuesta) que tomará aproximadamente 30 minutos en responder. Deberá calificar dimensiones como claridad, factibilidad y utilidad del modelo, y podrá agregar comentarios cualitativos para su mejora."},
+ {t:"mod", marc:true, k:"Modalidad B: Panel de validación de expertos", x:"Participará en la evaluación del modelo de gobernanza propuesto en dos etapas. Primero, en una sesión explicativa por videoconferencia de aproximadamente 40 minutos, se le presentará el modelo y se resolverán sus dudas. Luego, dentro de las 72 horas siguientes, responderá de forma individual un instrumento digital que toma entre 10 y 12 minutos. Deberá calificar la pertinencia de los componentes del modelo y las condiciones de claridad, factibilidad, utilidad percibida y coordinación interinstitucional, y podrá agregar comentarios cualitativos para su mejora."},
  {t:"h2", x:"Riesgos y beneficios"},
  {t:"p", x:"Este estudio no implica riesgos físicos ni psicológicos para usted. No existe retribución económica por su participación. El beneficio principal es contribuir a la generación de conocimiento que permita mejorar la gestión de la innovación pública y la transformación digital en el sistema de salud chileno."},
  {t:"h2", x:"Confidencialidad y protección de datos"},
@@ -280,6 +282,7 @@ PASOS.push({tipo:"resumen"});
 let S = {codigo:"", estrato:"", cons:null, resp:{}, just:{}, abiertas:{},
          meta:{v:VERSION, inicio:null, tramos:{}, enviado:null}};
 let paso = 0;
+let DE_ENLACE = false;   // el código vino en el enlace: no se edita por accidente
 
 function claveLS(c){ return "rsdue_oe4_v5_" + (c || S.codigo || "sc"); }
 function guardar(){ try{ localStorage.setItem(claveLS(), JSON.stringify(S)); }catch(e){} }
@@ -300,10 +303,27 @@ function marcar(k){
 }
 function contestados(){ return CLAVES.filter(k => S.resp[k] !== undefined).length; }
 function faltantes(){ return CLAVES.filter(k => S.resp[k] === undefined); }
-function justPend(){
-  return CLAVES.filter(k => S.resp[k] !== undefined && S.resp[k] <= 2 &&
-    !(S.just[k] && S.just[k].trim().length > 2));
+/* Se pide fundamento a toda respuesta que no cuenta como acuerdo:
+   componentes (escala 1–4) en 1 y 2; condiciones (escala 1–5) en 1, 2 y 3. */
+function esComp(k){ return k.charAt(0) === "A"; }
+function reqJust(k, v){ return v !== undefined && (esComp(k) ? v <= 2 : v <= 3); }
+function sugJust(k, v){ return esComp(k) && v === 3; }
+function etiqJust(k, v){
+  if(reqJust(k, v)) return '<span class="req">Requerido:</span> ' +
+    (esComp(k) ? 'indique brevemente qué habría que reformular.' : 'indique brevemente qué le impide estar de acuerdo.');
+  return 'Opcional: ¿qué ajuste menor propone?';
 }
+function justPend(){
+  return CLAVES.filter(k => reqJust(k, S.resp[k]) && !(S.just[k] && S.just[k].trim().length > 2));
+}
+function clavesDePaso(P){
+  if(P.tipo === "itemA") return [P.c.id];
+  if(P.tipo === "cond") return CONDICIONES.map(cd => "B_" + P.a.k + "_" + cd.k);
+  if(P.tipo === "global") return GLOBALES.map(g => g.id);
+  return [];
+}
+/* Orden en que el panelista responde (el CSV conserva el orden fijo de CLAVES) */
+const ORDEN = [].concat.apply([], PASOS.map(clavesDePaso));
 function nombreItem(k){
   const c = COMPONENTES.find(x => x.id === k); if(c) return c.n;
   const g = GLOBALES.find(x => x.id === k); if(g) return "Modelo completo · " + g.nom;
@@ -336,10 +356,9 @@ function progreso(){
 
 function justHTML(k){
   const v = S.resp[k];
-  const req = v !== undefined && v <= 2, sug = v === 3;
+  const req = reqJust(k, v), sug = sugJust(k, v);
   return '<div class="just' + (req || sug ? " on" : "") + '" id="j_' + k + '">' +
-    '<p class="small" style="margin:2px 0 5px" id="jl_' + k + '">' +
-    (req ? '<span class="req">Requerido:</span> indique brevemente qué habría que corregir.' : 'Comentario opcional.') +
+    '<p class="small" style="margin:2px 0 5px" id="jl_' + k + '">' + etiqJust(k, v) +
     '</p><textarea data-just="' + k + '" placeholder="Su comentario">' + esc(S.just[k] || "") + '</textarea></div>';
 }
 
@@ -358,7 +377,8 @@ function render(){
     h = '<div class="card"><h2>Identificación y consentimiento</h2>' +
       '<h3 style="margin-top:6px">Código de panelista</h3>' +
       '<p class="small">Fue enviado junto con el enlace. Identifica sus respuestas sin usar su nombre y determina la versión del instrumento que le corresponde: los códigos que empiezan con <b>R</b> corresponden a quienes integraron la red y los que empiezan con <b>E</b>, a actores externos.</p>' +
-      '<input type="text" id="cod" value="' + esc(S.codigo) + '" placeholder="Ej.: R02" style="width:130px">' +
+      '<input type="text" id="cod" value="' + esc(S.codigo) + '" placeholder="Ej.: R02" style="width:130px"' + (DE_ENLACE ? ' readonly' : '') + '>' +
+      (DE_ENLACE ? ' <a href="#" id="cambiarCod" class="small" style="color:var(--gris);margin-left:8px">¿No es su código? Cambiar</a>' : '') +
       '<p class="small" id="codMsg" style="margin-top:7px">' + msgCodigo() + '</p>';
 
     if(f){
@@ -367,7 +387,10 @@ function render(){
         '<button class="b b-sec b-full" id="verCons">Ver el documento nuevamente</button>' +
         '<button class="b b-sec b-full" id="bajarCons">Descargar mi copia</button>' +
         '<div id="docCons" class="hide">' + docHTML() + '</div>' +
-        '<button class="b b-pri b-full" style="margin-top:12px" data-nav="1">Continuar</button></div>';
+        (contestados() > 0
+          ? '<button class="b b-pri b-full" style="margin-top:12px" id="seguir">Continuar donde quedé (' + contestados() + ' de ' + TOTAL + ' respuestas)</button>' +
+            '<button class="b b-sec b-full" data-nav="1">Volver a ver el modelo desde el inicio</button></div>'
+          : '<button class="b b-pri b-full" style="margin-top:12px" data-nav="1">Continuar</button></div>');
       return pintar(h);
     }
     h += '<h3>Consentimiento informado</h3><div class="doc">' + docHTML() + '</div>' +
@@ -402,7 +425,7 @@ function render(){
         COMPONENTES.filter(c => c.amb === a.k).map(c => c.n).join("<br>") + '</td></tr>').join("") + '</table>' +
       '<h3>Cómo está organizado</h3>' +
       '<p class="small">Recorrerá los tres ámbitos. En cada uno evaluará primero <b>tres condiciones referidas al conjunto del ámbito</b> —claridad, factibilidad y utilidad percibida— y después calificará la <b>pertinencia de cada uno de sus componentes</b>, uno por pantalla. Al terminar los tres ámbitos responderá <b>una condición sobre el modelo completo</b> —coordinación interinstitucional— y <b>dos preguntas abiertas</b>. Son <b>' + TOTAL +
-      ' calificaciones</b>; toma entre 10 y 12 minutos y puede cerrar y retomar desde el mismo enlace.</p>' +
+      ' calificaciones</b>; toma entre 10 y 12 minutos. Su avance se guarda en este equipo: puede cerrar y retomar desde el mismo enlace, usando el mismo navegador.</p>' +
       '<h3>Las cuatro condiciones evaluadas del modelo</h3><table class="mini">' + defsHTML() + '</table>' +
       '<div class="aviso"><b>El desacuerdo es un resultado útil y esperado.</b> Un componente objetado con fundamento aporta más al trabajo que un acuerdo de cortesía. No se evalúa la gestión de la red, la calidad de sus productos ni el desempeño de personas.</div>' +
       '<div class="nav"><button class="b b-sec" data-nav="-1">Atrás</button>' +
@@ -433,10 +456,8 @@ function render(){
     h = '<div class="card cond"><span class="pill p-' + a.k + '">' + a.nom + '</span>' +
       '<h2 style="margin-top:10px">Primero, el ámbito en su conjunto</h2>' +
       '<p class="small">' + a.fn + '</p>' +
-      '<p class="small" style="margin:10px 0 4px">Los componentes que lo forman, y que evaluará uno a uno a continuación. Pase el cursor sobre uno o tóquelo para leer su definición.</p>' +
-      '<div class="rec">' + comps.map(c => '<button class="chip" data-comp="' + c.id + '" title="' +
-        c.d.replace(/"/g, "&quot;") + '">' + c.n + '</button>').join("") + '</div>' +
-      '<div id="chipDef" class="chipdef hide"></div>' +
+      '<p class="small" style="margin:10px 0 4px">Lea primero los componentes que lo forman. Después los evaluará uno a uno.</p>' +
+      '<div class="deflist">' + comps.map(c => '<p class="small"><b>' + c.n + '.</b> ' + c.d + '</p>').join("") + '</div>' +
       '<div class="aviso">Las tres afirmaciones se refieren al <b>conjunto</b> de los componentes del ámbito, no a cada uno por separado: en las pantallas siguientes calificará uno a uno. Solo las respuestas 4 y 5 se contabilizan como acuerdo; la opción 3 no es una respuesta intermedia favorable.</div>' +
       '<p class="small" style="margin:14px 0 2px"><b>El modelo, en este ámbito:</b></p>' +
       '<div class="leyenda">' + LIK.map((t, i) => '<span><b>' + (i + 1) + '</b><br>' + t + '</span>').join("") + '</div>';
@@ -485,7 +506,7 @@ function render(){
     h = '<div class="card"><h2>Revise antes de enviar</h2>' +
       '<p class="small">Toque cualquier fila para volver a esa pregunta y modificarla.</p><table class="res">';
     let ambActual = "";
-    CLAVES.forEach(k => {
+    ORDEN.forEach(k => {
       let grupo = "";
       const c = COMPONENTES.find(x => x.id === k);
       if(c) grupo = AMBITOS.find(a => a.k === c.amb).nom + " · componentes";
@@ -601,11 +622,8 @@ function elegir(k, v){
 
   const j = document.getElementById("j_" + k), lab = document.getElementById("jl_" + k);
   if(j){
-    const req = v <= 2, sug = v === 3;
-    j.classList.toggle("on", req || sug);
-    if(lab) lab.innerHTML = req
-      ? '<span class="req">Requerido:</span> indique brevemente qué habría que corregir.'
-      : 'Comentario opcional.';
+    j.classList.toggle("on", reqJust(k, v) || sugJust(k, v));
+    if(lab) lab.innerHTML = etiqJust(k, v);
   }
   const sig = document.getElementById("sig");
   if(sig){
@@ -643,6 +661,14 @@ function enlazar(){
   app.querySelectorAll("[data-nav]").forEach(b => {
     b.onclick = () => {
       const d = parseInt(b.dataset.nav, 10);
+      if(d === 1){
+        const pend = justPend(), falta = clavesDePaso(PASOS[paso]).filter(k => pend.indexOf(k) >= 0)[0];
+        if(falta){
+          const t = app.querySelector('textarea[data-just="' + falta + '"]');
+          if(t){ t.style.borderColor = "#b3261e"; t.focus(); }
+          return;
+        }
+      }
       if(paso + d >= 0 && paso + d < PASOS.length){ paso += d; render(); }
     };
   });
@@ -656,6 +682,14 @@ function enlazar(){
     S.estrato = estratoDe(S.codigo);
     const m = document.getElementById("codMsg");
     if(m) m.innerHTML = msgCodigo();
+  };
+  const cc = document.getElementById("cambiarCod");
+  if(cc) cc.onclick = (ev) => { ev.preventDefault(); DE_ENLACE = false; S.cons = null; S.resp = {}; S.just = {}; S.abiertas = {}; render();
+    const i = document.getElementById("cod"); if(i){ i.focus(); i.select(); } };
+  const sg = document.getElementById("seguir");
+  if(sg) sg.onclick = () => {
+    const f = ORDEN.filter(k => S.resp[k] === undefined)[0] || justPend()[0];
+    paso = f ? pasoDe(f) : PASOS.length - 1; render();
   };
   const vc = document.getElementById("verCons");
   if(vc) vc.onclick = () => { document.getElementById("docCons").classList.toggle("hide"); };
@@ -869,7 +903,10 @@ function bajar(nombre, contenido, mime){
 /* ====== INICIO ====== */
 (function(){
   const hash = (location.hash || "").replace("#", "").trim().toUpperCase();
-  if(hash){ S.codigo = normCod(hash); S.estrato = estratoDe(S.codigo); }
+  if(hash){
+    S.codigo = normCod(hash); S.estrato = estratoDe(S.codigo);
+    if(S.estrato){ DE_ENLACE = true; const c0 = S.codigo, e0 = S.estrato; cargar(c0); S.codigo = c0; S.estrato = e0; }
+  }
   render();
 })();
 </script>
