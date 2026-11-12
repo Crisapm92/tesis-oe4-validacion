@@ -123,7 +123,7 @@ const DESTINO = "cristobalpineda@ug.uchile.cl";
    Pegue aquí la URL que termina en /exec. Si queda vacía, el instrumento
    funciona como antes: envío por correo o descarga de archivos. */
 const ENDPOINT = "https://script.google.com/macros/s/AKfycbxSiBfD18P2gxtEexlkA6LH48vV76dlnXaiGrkCid5WcAH32Sg85ygWQn5htcvsqNjD/exec";
-const VERSION = "5.3";
+const VERSION = "5.4";
 /* Codificación de panelistas. La letra inicial define el estrato y con ella
    la versión del instrumento; el número correlativo no tiene tope, de modo que
    el panel puede crecer sin tocar el archivo. Para cambiar las letras, edite
@@ -227,8 +227,8 @@ const CONDICIONES = [
   red:"Permite entender qué establece cada componente de este ámbito y a quién corresponde ejecutarlo.",
   ext:"Permite entender qué establece cada componente de este ámbito y a quién corresponde ejecutarlo."},
  {k:"FAC", nom:"Factibilidad",
-  red:"Puede implementarse en este ámbito con los recursos y las atribuciones que hoy tienen las universidades del Estado y el nivel central de la red.",
-  ext:"Puede implementarse en este ámbito con los recursos y las atribuciones que tiene una red de instituciones que desarrolla productos digitales en salud, como la RSDUE."},
+  red:"Es realista implementarlo en este ámbito en una red de universidades del Estado como la RSDUE, considerando los recursos y las atribuciones que requeriría.",
+  ext:"Es realista implementarlo en este ámbito en una red de instituciones como la RSDUE, considerando los recursos y las atribuciones que requeriría."},
  {k:"UTI", nom:"Utilidad percibida",
   red:"Aporta, en este ámbito, al proceso de transferencia de los productos respecto de la forma en que la red lo realizó.",
   ext:"Aporta, en este ámbito, al proceso de transferencia de productos digitales hacia las instituciones que los adoptan, respecto de la forma en que hoy suele realizarse."}
@@ -236,8 +236,8 @@ const CONDICIONES = [
 
 const GLOBALES = [
  {id:"G_COO", nom:"Coordinación interinstitucional",
-  red:"Articula la acción entre las universidades participantes y el nivel central de la red.",
-  ext:"Articula la acción entre las instituciones participantes y el nivel central de una red, como ocurre en la RSDUE."}
+  red:"Articula la acción entre las universidades participantes y el nivel central de una red como la RSDUE.",
+  ext:"Articula la acción entre las instituciones participantes y el nivel central de una red como la RSDUE."}
 ];
 
 /* Enunciado del bloque de pertinencia, en sus dos variantes */
